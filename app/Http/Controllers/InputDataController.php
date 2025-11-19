@@ -1,0 +1,480 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Barang;
+use App\Models\Supplier;
+use App\Models\Customer;
+use App\Http\Requests\SaldoAwalRequest;
+use App\Http\Requests\CustomerRequest;
+use App\Http\Requests\SupplierRequest;
+use Illuminate\Http\Request;
+
+class InputDataController extends Controller
+{
+    /**
+     * Show Input Data Barang form
+     */
+    public function barang()
+    {
+        return view('input-data.barang');
+    }
+
+    /**
+     * Show Input Data Supplier form
+     */
+    public function supplier()
+    {
+        // Generate kode supplier otomatis untuk preview
+        $last = Supplier::orderBy('id', 'DESC')->first();
+        if (!$last) {
+            $newCode = 'SUP001';
+        } else {
+            // Extract number from last kode_supplier
+            $lastCode = $last->kode_supplier;
+            if (preg_match('/SUP(\d+)/', $lastCode, $matches)) {
+                $num = (int) $matches[1];
+                $num++;
+                $newCode = 'SUP' . str_pad($num, 3, '0', STR_PAD_LEFT);
+            } else {
+                // If format doesn't match, start from 001
+                $newCode = 'SUP001';
+            }
+        }
+        
+        return view('input-data.supplier', compact('newCode'));
+    }
+
+    /**
+     * Show Input Data Customer form
+     */
+    public function customer()
+    {
+        // Generate kode customer otomatis untuk preview
+        $last = Customer::orderBy('id', 'DESC')->first();
+        if (!$last) {
+            $kode = 'CUS001';
+        } else {
+            // Extract number from last kode_customer
+            $lastCode = $last->kode_customer;
+            if (preg_match('/CUS(\d+)/', $lastCode, $matches)) {
+                $num = (int) $matches[1];
+                $num++;
+                $kode = 'CUS' . str_pad($num, 3, '0', STR_PAD_LEFT);
+            } else {
+                // If format doesn't match, start from 001
+                $kode = 'CUS001';
+            }
+        }
+        
+        return view('input-data.customer', compact('kode'));
+    }
+
+    /**
+     * Show Input Data Saldo Awal form
+     */
+    public function saldo()
+    {
+        // Get all barang with saldo awal (stok > 0 AND harga_beli > 0)
+        $barangs = Barang::where('stok', '>', 0)
+            ->where('harga_beli', '>', 0)
+            ->orderBy('kode_barang')
+            ->get();
+        
+        // Calculate total saldo awal
+        $totalSaldo = $barangs->sum(function($barang) {
+            return $barang->stok * $barang->harga_beli;
+        });
+        
+        return view('input-data.saldo', compact('barangs', 'totalSaldo'));
+    }
+
+    /**
+     * Store barang data
+     */
+    public function storeBarang(Request $request)
+    {
+        // AUTO GENERATE KODE BARANG
+        $last = Barang::orderBy('id', 'DESC')->first();
+        if (!$last) {
+            $newCode = 'KODE-001';
+        } else {
+            // Extract number from last kode_barang
+            $lastCode = $last->kode_barang;
+            if (preg_match('/KODE-(\d+)/', $lastCode, $matches)) {
+                $num = (int) $matches[1];
+                $num++;
+                $newCode = 'KODE-' . str_pad($num, 3, '0', STR_PAD_LEFT);
+            } else {
+                // If format doesn't match, start from 001
+                $newCode = 'KODE-001';
+            }
+        }
+
+        $request->merge([
+            'kode_barang' => $newCode,
+        ]);
+
+        $validated = $request->validate([
+            'kode_barang' => 'required|string|unique:barangs,kode_barang',
+            'nama_barang' => 'required|string',
+            'kategori' => 'required|string',
+            'limit_stock' => 'required|integer|min:0',
+            'satuan' => 'required|string',
+        ], [
+            'kode_barang.required' => 'Kode barang wajib diisi.',
+            'kode_barang.unique' => 'Kode barang sudah digunakan. Silakan gunakan kode yang berbeda.',
+            'nama_barang.required' => 'Nama barang wajib diisi.',
+            'kategori.required' => 'Kategori barang wajib dipilih.',
+            'limit_stock.required' => 'Limit stock wajib diisi.',
+            'limit_stock.integer' => 'Limit stock harus berupa angka bulat.',
+            'limit_stock.min' => 'Limit stock tidak boleh kurang dari 0.',
+            'satuan.required' => 'Jenis satuan wajib dipilih.',
+        ]);
+
+        Barang::create([
+            'kode_barang' => $validated['kode_barang'],
+            'nama_barang' => $validated['nama_barang'],
+            'deskripsi' => $validated['kategori'], // Simpan kategori di field deskripsi untuk sekarang
+            'satuan' => $validated['satuan'],
+            'stok' => (int) $validated['limit_stock'], // Pastikan integer
+            'harga_beli' => 0,
+            'harga_jual' => 0,
+        ]);
+
+        return redirect()->route('input-data.barang')->with('success', 'Data barang berhasil disimpan! Kode barang: ' . $validated['kode_barang']);
+    }
+
+    /**
+     * Store supplier data
+     */
+    public function storeSupplier(SupplierRequest $request)
+    {
+        // Generate kode supplier otomatis
+        $last = Supplier::orderBy('id', 'DESC')->first();
+        if (!$last) {
+            $newCode = 'SUP001';
+        } else {
+            // Extract number from last kode_supplier
+            $lastCode = $last->kode_supplier;
+            if (preg_match('/SUP(\d+)/', $lastCode, $matches)) {
+                $num = (int) $matches[1];
+                $num++;
+                $newCode = 'SUP' . str_pad($num, 3, '0', STR_PAD_LEFT);
+            } else {
+                // If format doesn't match, start from 001
+                $newCode = 'SUP001';
+            }
+        }
+
+        // Semua request sudah tervalidasi otomatis oleh SupplierRequest
+        $validated = $request->validated();
+        
+        Supplier::create([
+            'kode_supplier' => $newCode,
+            'nama_supplier' => $validated['nama_supplier'],
+            'alamat' => $validated['alamat'],
+            'telepon' => $validated['telepon'],
+            'email' => $validated['email'] ?? null,
+            'nama_pemilik' => $validated['nama_pemilik'] ?? null,
+            'keterangan' => $validated['keterangan'] ?? null,
+        ]);
+
+        return redirect()->route('input-data.supplier')->with('success', 'Data supplier berhasil disimpan! Kode supplier: ' . $newCode);
+    }
+
+    /**
+     * Store customer data
+     */
+    public function storeCustomer(CustomerRequest $request)
+    {
+        // Generate kode customer otomatis
+        $last = Customer::orderBy('id', 'DESC')->first();
+        if (!$last) {
+            $newCode = 'CUS001';
+        } else {
+            // Extract number from last kode_customer
+            $lastCode = $last->kode_customer;
+            if (preg_match('/CUS(\d+)/', $lastCode, $matches)) {
+                $num = (int) $matches[1];
+                $num++;
+                $newCode = 'CUS' . str_pad($num, 3, '0', STR_PAD_LEFT);
+            } else {
+                // If format doesn't match, start from 001
+                $newCode = 'CUS001';
+            }
+        }
+
+        // Semua request sudah tervalidasi otomatis oleh CustomerRequest
+        $validated = $request->validated();
+        
+        Customer::create([
+            'kode_customer' => $newCode,
+            'nama_customer' => $validated['nama_customer'],
+            'alamat' => $validated['alamat'],
+            'telepon' => $validated['telepon'],
+            'email' => $validated['email'] ?? null,
+            'tipe_customer' => $validated['tipe_customer'] ?? null,
+            'keterangan' => $validated['keterangan'] ?? null,
+        ]);
+
+        return redirect()->route('input-data.customer')->with('success', 'Data customer berhasil disimpan! Kode customer: ' . $newCode);
+    }
+
+    /**
+     * Store saldo awal data
+     */
+    public function storeSaldo(SaldoAwalRequest $request)
+    {
+        // Semua request sudah tervalidasi otomatis oleh SaldoAwalRequest
+        $validated = $request->validated();
+
+        try {
+            $totalSaldo = 0;
+            $submittedKodes = []; // Simpan kode barang yang ada di form
+            
+            foreach ($validated['barang_kode'] as $index => $kodeBarang) {
+                $namaBarang = $validated['barang_nama'][$index];
+                $kategori = $validated['barang_kategori'][$index];
+                $qty = (float) $validated['barang_qty'][$index];
+                $satuan = $validated['barang_satuan'][$index];
+                $hargaBeli = (float) $validated['barang_harga'][$index];
+                $hargaJual = (float) $validated['barang_harga_jual'][$index];
+                $jumlah = (float) $validated['barang_jumlah'][$index];
+                
+                $submittedKodes[] = $kodeBarang;
+                
+                // Barang harus sudah ada di master data (divalidasi oleh FormRequest)
+                $barang = Barang::where('kode_barang', $kodeBarang)
+                    ->where('nama_barang', $namaBarang)
+                    ->firstOrFail();
+                
+                // Update barang yang sudah ada
+                $barang->update([
+                    'deskripsi' => $kategori,
+                    'satuan' => $satuan,
+                    'stok' => (int) $qty,
+                    'harga_beli' => $hargaBeli,
+                    'harga_jual' => $hargaJual,
+                ]);
+                
+                $totalSaldo += $jumlah;
+            }
+            
+            // Hapus saldo awal untuk barang yang tidak ada di form (jika sebelumnya ada saldo awal)
+            // Hanya reset stok dan harga_beli menjadi 0 untuk barang yang sebelumnya punya saldo awal
+            // tapi tidak ada di form yang di-submit
+            Barang::where('stok', '>', 0)
+                ->where('harga_beli', '>', 0)
+                ->whereNotIn('kode_barang', $submittedKodes)
+                ->update([
+                    'stok' => 0,
+                    'harga_beli' => 0,
+                ]);
+
+            return redirect()->route('input-data.saldo')
+                ->with('success', 'Data saldo awal berhasil disimpan! Total saldo: Rp ' . number_format($totalSaldo, 0, ',', '.'));
+        } catch (\Exception $e) {
+            return redirect()->route('input-data.saldo')
+                ->with('error', 'Gagal menyimpan data saldo awal: ' . $e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
+     * Delete barang data
+     */
+    public function destroyBarang($id)
+    {
+        // Check if user has permission (admin or superadmin)
+        if (!auth()->check() || !in_array(auth()->user()->role, ['admin', 'superadmin'])) {
+            abort(403, 'Unauthorized access. Only admin and pimpinan can delete barang.');
+        }
+
+        try {
+            $barang = Barang::findOrFail($id);
+            $barang->delete();
+
+            return redirect()->route('report.laporan-data-barang')
+                ->with('success', 'Data barang berhasil dihapus!');
+        } catch (\Exception $e) {
+            return redirect()->route('report.laporan-data-barang')
+                ->with('error', 'Gagal menghapus data barang: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete supplier data
+     */
+    public function destroySupplier($id)
+    {
+        // Check if user has permission (admin or superadmin)
+        if (!auth()->check() || !in_array(auth()->user()->role, ['admin', 'superadmin'])) {
+            abort(403, 'Unauthorized access. Only admin and pimpinan can delete supplier.');
+        }
+
+        try {
+            $supplier = Supplier::findOrFail($id);
+            $supplier->delete();
+
+            return redirect()->route('report.laporan-data-supplier')
+                ->with('success', 'Data supplier berhasil dihapus!');
+        } catch (\Exception $e) {
+            return redirect()->route('report.laporan-data-supplier')
+                ->with('error', 'Gagal menghapus data supplier: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get barang by kode (API endpoint)
+     */
+    public function getBarangByKode($kode)
+    {
+        try {
+            $barang = Barang::where('kode_barang', $kode)->first();
+            
+            if (!$barang) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Barang tidak ditemukan'
+                ], 404);
+            }
+            
+            // Only return barang that has harga_beli > 0 (from saldo awal)
+            if ($barang->harga_beli <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Barang tidak memiliki harga beli (belum ada di saldo awal)'
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'barang' => [
+                    'id' => $barang->id,
+                    'kode_barang' => $barang->kode_barang,
+                    'nama_barang' => $barang->nama_barang,
+                    'satuan' => $barang->satuan,
+                    'harga_beli' => $barang->harga_beli,
+                    'stok' => $barang->stok,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get barang by name (API endpoint for auto-fill)
+     */
+    public function getBarangByName(Request $request)
+    {
+        try {
+            $nama = $request->input('nama');
+            
+            if (!$nama) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Parameter nama diperlukan'
+                ], 400);
+            }
+            
+            $barang = Barang::where('nama_barang', $nama)->first();
+            
+            if (!$barang) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Barang tidak ditemukan'
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'barang' => [
+                    'id' => $barang->id,
+                    'kode_barang' => $barang->kode_barang,
+                    'nama_barang' => $barang->nama_barang,
+                    'deskripsi' => $barang->deskripsi,
+                    'kategori' => $barang->deskripsi, // Alias for frontend
+                    'satuan' => $barang->satuan,
+                    'harga_beli' => $barang->harga_beli,
+                    'harga_jual' => $barang->harga_jual,
+                    'stok' => $barang->stok,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get customer by name (API endpoint for auto-fill)
+     */
+    public function getCustomerByName(Request $request)
+    {
+        try {
+            $nama = $request->input('nama');
+            
+            if (!$nama) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Parameter nama diperlukan'
+                ], 400);
+            }
+            
+            $customer = Customer::where('nama_customer', $nama)->first();
+            
+            if (!$customer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer tidak ditemukan'
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'customer' => [
+                    'id' => $customer->id,
+                    'kode_customer' => $customer->kode_customer,
+                    'nama_customer' => $customer->nama_customer,
+                    'alamat' => $customer->alamat,
+                    'telepon' => $customer->telepon,
+                    'email' => $customer->email,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete customer data
+     */
+    public function destroyCustomer($id)
+    {
+        // Check if user has permission (admin or superadmin)
+        if (!auth()->check() || !in_array(auth()->user()->role, ['admin', 'superadmin'])) {
+            abort(403, 'Unauthorized access. Only admin and pimpinan can delete customer.');
+        }
+
+        try {
+            $customer = Customer::findOrFail($id);
+            $customer->delete();
+
+            return redirect()->route('report.laporan-data-customer')
+                ->with('success', 'Data customer berhasil dihapus!');
+        } catch (\Exception $e) {
+            return redirect()->route('report.laporan-data-customer')
+                ->with('error', 'Gagal menghapus data customer: ' . $e->getMessage());
+        }
+    }
+}
