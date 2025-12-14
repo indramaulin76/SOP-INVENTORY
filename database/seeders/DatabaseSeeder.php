@@ -16,6 +16,6 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(SuperAdminSeeder::class);
-        $this->call(StockOpnameSeeder::class);
+        // $this->call(StockOpnameSeeder::class); // Disabled for QC: System must start clean
     }
 }
