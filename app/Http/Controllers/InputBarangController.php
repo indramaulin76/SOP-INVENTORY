@@ -172,8 +172,6 @@ class InputBarangController extends Controller
                     $namaBarang = $request->barang_nama[$index] ?? '';
                     $quantity = (float) ($request->barang_qty[$index] ?? 0);
                     $satuan = $request->barang_satuan[$index] ?? '';
-                    $hargaBeli = (float) ($request->barang_harga[$index] ?? 0);
-                    $jumlah = (float) ($request->barang_jumlah[$index] ?? 0);
 
                     // Validate quantity
                     if ($quantity <= 0) {
@@ -183,6 +181,10 @@ class InputBarangController extends Controller
                     // Cari barang (harus sudah ada di master data)
                     $barang = Barang::where('kode_barang', $kodeBarang)->firstOrFail();
                     
+                    // Use Master Data Price (Standard Costing)
+                    $hargaBeli = $barang->harga_beli;
+                    $jumlah = $quantity * $hargaBeli;
+
                     // Validasi kategori: hanya "Bahan Baku" yang diperbolehkan
                     $kategori = strtolower(trim($barang->deskripsi ?? ''));
                     $allowedKategori = ['bahan baku', 'bahan_baku', 'bahanbaku', 'bahan roti', 'bahan kopi'];
@@ -204,9 +206,8 @@ class InputBarangController extends Controller
                     // Update stock: stok_akhir = stok_awal + masuk (bulatkan ke integer)
                     $barang->addStock((int) round($quantity));
                     
-                    // Update harga beli dan nama jika berubah
+                    // Update nama dan satuan jika berubah (JANGAN update harga_beli)
                     $barang->update([
-                        'harga_beli' => $hargaBeli,
                         'nama_barang' => $namaBarang,
                         'satuan' => $satuan,
                     ]);
@@ -291,8 +292,6 @@ class InputBarangController extends Controller
                     $namaBarang = $request->barang_nama[$index] ?? '';
                     $quantity = (float) ($request->barang_qty[$index] ?? 0);
                     $satuan = $request->barang_satuan[$index] ?? '';
-                    $harga = (float) ($request->barang_harga[$index] ?? 0);
-                    $jumlah = (float) ($request->barang_jumlah[$index] ?? 0);
 
                     // Validate quantity
                     if ($quantity <= 0) {
@@ -302,6 +301,10 @@ class InputBarangController extends Controller
                     // Cari barang (harus sudah ada di master data)
                     $barang = Barang::where('kode_barang', $barangKode)->firstOrFail();
                     
+                    // Use Master Data Price
+                    $harga = $barang->harga_beli;
+                    $jumlah = $quantity * $harga;
+
                     // Validasi kategori: hanya "Barang Dalam Proses" yang diperbolehkan
                     $kategori = strtolower(trim($barang->deskripsi ?? ''));
                     $allowedKategori = ['barang dalam proses', 'barang_dalam_proses', 'barangdalamproses', 'barang_proses', 'barangproses'];
@@ -324,9 +327,8 @@ class InputBarangController extends Controller
                     // Update stock: stok_akhir = stok_awal + masuk (bulatkan ke integer)
                     $barang->addStock((int) round($quantity));
                     
-                    // Update harga beli dan nama jika berubah
+                    // Update nama dan satuan jika berubah (JANGAN update harga_beli)
                     $barang->update([
-                        'harga_beli' => $harga,
                         'nama_barang' => $namaBarang,
                         'satuan' => $satuan,
                     ]);
@@ -411,8 +413,6 @@ class InputBarangController extends Controller
                     $namaBarang = $request->barang_nama[$index] ?? '';
                     $quantity = (float) ($request->barang_qty[$index] ?? 0);
                     $satuan = $request->barang_satuan[$index] ?? '';
-                    $harga = (float) ($request->barang_harga[$index] ?? 0);
-                    $jumlah = (float) ($request->barang_jumlah[$index] ?? 0);
 
                     // Validate quantity
                     if ($quantity <= 0) {
@@ -422,6 +422,10 @@ class InputBarangController extends Controller
                     // Cari barang (harus sudah ada di master data)
                     $barang = Barang::where('kode_barang', $barangKode)->firstOrFail();
                     
+                    // Use Master Data Price
+                    $harga = $barang->harga_beli;
+                    $jumlah = $quantity * $harga;
+
                     // Validasi kategori: hanya "Barang Jadi" yang diperbolehkan
                     $kategori = strtolower(trim($barang->deskripsi ?? ''));
                     $allowedKategori = ['barang jadi', 'barang_jadi', 'barangjadi'];
@@ -444,9 +448,8 @@ class InputBarangController extends Controller
                     // Update stock: stok_akhir = stok_awal + masuk (bulatkan ke integer)
                     $barang->addStock((int) round($quantity));
                     
-                    // Update harga beli dan nama jika berubah
+                    // Update nama dan satuan jika berubah (JANGAN update harga_beli)
                     $barang->update([
-                        'harga_beli' => $harga,
                         'nama_barang' => $namaBarang,
                         'satuan' => $satuan,
                     ]);
