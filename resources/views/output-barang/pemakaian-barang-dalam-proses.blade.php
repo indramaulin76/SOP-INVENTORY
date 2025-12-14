@@ -262,6 +262,21 @@
         
         try {
             const response = await fetch(`/api/get-barang-by-name?nama=${encodeURIComponent(namaBarang)}`);
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                throw new Error('Network response was not ok');
+            }
+
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                window.location.href = '/login';
+                return;
+            }
+
             const data = await response.json();
             
             if (data.success && data.barang) {
