@@ -16,6 +16,7 @@ use App\Http\Requests\PemakaianBarangDalamProsesRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use App\Services\InventoryService;
 
 class OutputBarangController extends Controller
 {
@@ -80,7 +81,7 @@ class OutputBarangController extends Controller
     /**
      * Store Penjualan Barang Jadi
      */
-    public function storePenjualanBarangJadi(PenjualanBarangJadiRequest $request)
+    public function storePenjualanBarangJadi(PenjualanBarangJadiRequest $request, InventoryService $inventoryService)
     {
         // Semua request sudah tervalidasi otomatis oleh PenjualanBarangJadiRequest
         $validated = $request->validated();
@@ -219,6 +220,9 @@ class OutputBarangController extends Controller
                     $hargaJual = $barang->harga_jual;
                     $jumlah = $quantity * $hargaJual;
 
+                    // Consume Inventory (FIFO/LIFO/AVG)
+                    $costData = $inventoryService->consumeInventory($barang, $quantity);
+
                     PenjualanBarangJadiDetail::create([
                         'penjualan_barang_jadi_id' => $penjualan->id,
                         'barang_id' => $barang->id,
@@ -228,6 +232,8 @@ class OutputBarangController extends Controller
                         'satuan' => $barang->satuan,
                         'harga' => $hargaJual,
                         'jumlah' => $jumlah,
+                        'hpp_total' => $costData['total_cost'],
+                        'hpp_unit' => $costData['unit_cost'],
                     ]);
                 }
             }
@@ -256,7 +262,7 @@ class OutputBarangController extends Controller
     /**
      * Store Pemakaian Bahan Baku
      */
-    public function storePemakaianBahanBaku(PemakaianBahanBakuRequest $request)
+    public function storePemakaianBahanBaku(PemakaianBahanBakuRequest $request, InventoryService $inventoryService)
     {
         // Semua request sudah tervalidasi otomatis oleh PemakaianBahanBakuRequest
         $validated = $request->validated();
@@ -349,8 +355,19 @@ class OutputBarangController extends Controller
                     throw new \Exception("Barang {$barang->nama_barang} tidak memiliki harga beli. Pastikan barang sudah ada di saldo awal.");
                 }
                 
-                // Recalculate jumlah using harga_beli from database
-                $jumlah = $quantity * $hargaBeli;
+                // Consume Inventory (FIFO/LIFO/AVG) to get Actual Cost
+                $costData = $inventoryService->consumeInventory($barang, $quantity);
+
+                // Use Actual Cost for 'harga' and 'jumlah' in transaction record
+                // (or keep 'harga' as standard cost and use 'hpp' columns?
+                // Prompt: "Transaction output must store the actual cost used".
+                // Current table structure has 'harga' and 'jumlah'.
+                // If I overwrite 'harga' with actual unit cost, it might vary per transaction.
+                // Standard practice: Usage transaction value IS the actual cost.
+                // So I will use the calculated cost.
+
+                $unitCost = $costData['unit_cost'];
+                $totalCost = $costData['total_cost'];
 
                 // Create detail - gunakan data dari master
                 $pemakaian->details()->create([
@@ -359,8 +376,10 @@ class OutputBarangController extends Controller
                     'barang_kode' => $barang->kode_barang,
                     'quantity' => $quantity,
                     'satuan' => $barang->satuan,
-                    'harga' => $hargaBeli,
-                    'jumlah' => $jumlah,
+                    'harga' => $unitCost, // Actual Cost
+                    'jumlah' => $totalCost, // Actual Total Cost
+                    'hpp_unit' => $unitCost,
+                    'hpp_total' => $totalCost,
                 ]);
 
                 // Reduce stock: stok_akhir = stok_awal - keluar
@@ -403,7 +422,7 @@ class OutputBarangController extends Controller
     /**
      * Store Pemakaian Barang Dalam Proses
      */
-    public function storePemakaianBarangDalamProses(PemakaianBarangDalamProsesRequest $request)
+    public function storePemakaianBarangDalamProses(PemakaianBarangDalamProsesRequest $request, InventoryService $inventoryService)
     {
         // Semua request sudah tervalidasi otomatis oleh PemakaianBarangDalamProsesRequest
         $validated = $request->validated();
@@ -505,8 +524,11 @@ class OutputBarangController extends Controller
                     throw new \Exception("Barang {$barang->nama_barang} tidak memiliki harga beli. Pastikan barang sudah ada di saldo awal.");
                 }
                 
-                // Recalculate jumlah using harga_beli from database
-                $jumlah = $quantity * $hargaBeli;
+                // Consume Inventory (FIFO/LIFO/AVG) to get Actual Cost
+                $costData = $inventoryService->consumeInventory($barang, $quantity);
+
+                $unitCost = $costData['unit_cost'];
+                $totalCost = $costData['total_cost'];
 
                 // Create detail - gunakan data dari master
                 $pemakaian->details()->create([
@@ -515,8 +537,10 @@ class OutputBarangController extends Controller
                     'barang_kode' => $barang->kode_barang,
                     'quantity' => $quantity,
                     'satuan' => $barang->satuan,
-                    'harga' => $hargaBeli,
-                    'jumlah' => $jumlah,
+                    'harga' => $unitCost, // Actual Cost
+                    'jumlah' => $totalCost, // Actual Total Cost
+                    'hpp_unit' => $unitCost,
+                    'hpp_total' => $totalCost,
                 ]);
 
                 // Reduce stock: stok_akhir = stok_awal - keluar

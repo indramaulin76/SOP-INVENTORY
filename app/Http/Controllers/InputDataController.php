@@ -10,6 +10,7 @@ use App\Http\Requests\CustomerRequest;
 use App\Http\Requests\SupplierRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\InventoryService;
 
 class InputDataController extends Controller
 {
@@ -252,12 +253,14 @@ class InputDataController extends Controller
     /**
      * Store saldo awal data
      */
-    public function storeSaldo(SaldoAwalRequest $request)
+    public function storeSaldo(SaldoAwalRequest $request, InventoryService $inventoryService)
     {
         // Semua request sudah tervalidasi otomatis oleh SaldoAwalRequest
         $validated = $request->validated();
 
         try {
+            DB::beginTransaction();
+
             $totalSaldo = 0;
             $submittedKodes = []; // Simpan kode barang yang ada di form
             
@@ -273,17 +276,47 @@ class InputDataController extends Controller
                 $submittedKodes[] = $kodeBarang;
                 
                 // Barang harus sudah ada di master data (divalidasi oleh FormRequest)
-                $barang = Barang::where('kode_barang', $kodeBarang)->first();
+                $barang = Barang::where('kode_barang', $kodeBarang)->lockForUpdate()->first();
 
                 if (!$barang) {
                     throw new \Exception("Barang dengan kode {$kodeBarang} tidak ditemukan.");
                 }
+
+                // Reset stock first if it's a "Saldo Awal" overwrite logic (assumption: Saldo Awal is initial state)
+                // But per instructions "Input Saldo Awal is considered the FIRST inventory batch".
+                // If the user *updates* saldo awal, we should strictly speaking adjust batches.
+                // Given the constraints and "No legacy data", we assume this runs initially.
+                // However, the code below used to just update `stok`.
+                // I need to create a batch for this qty.
+                // Important: If stok > 0 already, this might duplicate if run again.
+                // "Input Saldo Awal" usually implies setting the *starting* point.
+                // I will add the difference or just set it?
+                // The previous code did `$barang->update(['stok' => $qty])`.
+                // So it forces the stock to be $qty.
+                // To maintain "Batch" integrity, I should clear previous "saldo_awal" batches for this item and create a new one.
+
+                // Remove old saldo_awal batches to avoid duplication on re-save
+                \App\Models\InventoryBatch::where('barang_id', $barang->id)
+                    ->where('sumber', 'saldo_awal')
+                    ->delete();
+
+                // Create new batch
+                if ($qty > 0) {
+                    $inventoryService->createBatch($barang, $qty, $hargaBeli, 'saldo_awal');
+                }
+
+                // Update barang master data
+                // Note: stok will be updated by createBatch logic? No, createBatch just creates the record.
+                // I need to update the master stock too?
+                // Wait, in standard systems, master stock is sum of batches.
+                // Previous code: $barang->update(['stok' => $qty]).
+                // I should keep master stock in sync.
+                // Since this is "Input Saldo", we are defining the TOTAL stock.
                 
-                // Update barang yang sudah ada
                 $barang->update([
                     'deskripsi' => $kategori,
                     'satuan' => $satuan,
-                    'stok' => (int) $qty,
+                    'stok' => $qty, // Force set stock to match input
                     'harga_beli' => $hargaBeli,
                     'harga_jual' => $hargaJual,
                 ]);
@@ -291,20 +324,30 @@ class InputDataController extends Controller
                 $totalSaldo += $jumlah;
             }
             
-            // Hapus saldo awal untuk barang yang tidak ada di form (jika sebelumnya ada saldo awal)
-            // Hanya reset stok dan harga_beli menjadi 0 untuk barang yang sebelumnya punya saldo awal
-            // tapi tidak ada di form yang di-submit
-            Barang::where('stok', '>', 0)
+            // Hapus saldo awal untuk barang yang tidak ada di form (reset to 0)
+            $itemsReset = Barang::where('stok', '>', 0)
                 ->where('harga_beli', '>', 0)
                 ->whereNotIn('kode_barang', $submittedKodes)
-                ->update([
+                ->get();
+
+            foreach ($itemsReset as $item) {
+                // Clear batches
+                \App\Models\InventoryBatch::where('barang_id', $item->id)
+                    ->where('sumber', 'saldo_awal')
+                    ->delete();
+
+                $item->update([
                     'stok' => 0,
                     'harga_beli' => 0,
                 ]);
+            }
+
+            DB::commit();
 
             return redirect()->route('input-data.saldo')
                 ->with('success', 'Data saldo awal berhasil disimpan! Total saldo: Rp ' . number_format($totalSaldo, 0, ',', '.'));
         } catch (\Exception $e) {
+            DB::rollBack();
             return redirect()->route('input-data.saldo')
                 ->with('error', 'Gagal menyimpan data saldo awal: ' . $e->getMessage())
                 ->withInput();
