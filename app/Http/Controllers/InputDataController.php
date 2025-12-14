@@ -245,9 +245,11 @@ class InputDataController extends Controller
                 $submittedKodes[] = $kodeBarang;
                 
                 // Barang harus sudah ada di master data (divalidasi oleh FormRequest)
-                $barang = Barang::where('kode_barang', $kodeBarang)
-                    ->where('nama_barang', $namaBarang)
-                    ->firstOrFail();
+                $barang = Barang::where('kode_barang', $kodeBarang)->first();
+
+                if (!$barang) {
+                    throw new \Exception("Barang dengan kode {$kodeBarang} tidak ditemukan.");
+                }
                 
                 // Update barang yang sudah ada
                 $barang->update([

@@ -19,7 +19,6 @@ class SaldoAwalRequest extends FormRequest
             'barang_nama.*' => [
                 'required',
                 'string',
-                Rule::exists('barangs', 'nama_barang')
             ],
             'barang_kode' => 'required|array',
             'barang_kode.*' => [
@@ -47,7 +46,6 @@ class SaldoAwalRequest extends FormRequest
         return [
             'barang_nama.required' => 'Minimal satu barang harus diinput.',
             'barang_nama.*.required' => 'Nama barang wajib diisi.',
-            'barang_nama.*.exists' => 'Nama barang :input tidak ditemukan di master data. Pastikan barang sudah terdaftar.',
             'barang_kode.required' => 'Minimal satu barang harus diinput.',
             'barang_kode.*.required' => 'Kode barang wajib diisi.',
             'barang_kode.*.exists' => 'Kode barang :input tidak ditemukan di master data.',
