@@ -135,14 +135,16 @@ class OutputBarangController extends Controller
                 $namaBarang = $validated['barang_nama'][$index] ?? '';
                 $quantity = (float) ($validated['barang_qty'][$index] ?? 0);
                 $satuan = $validated['barang_satuan'][$index] ?? '';
-                $hargaJual = (float) ($validated['barang_harga'][$index] ?? 0);
-                $jumlah = (float) ($validated['barang_jumlah'][$index] ?? 0);
 
                 // Ambil barang dari master
                 $barang = Barang::where('kode_barang', $barangKode)->first();
                 if (!$barang) {
                     return back()->withErrors(['barang_kode.' . $index => 'Barang tidak ada di master data'])->withInput();
                 }
+
+                // Use Master Data Price
+                $hargaJual = $barang->harga_jual;
+                $jumlah = $quantity * $hargaJual;
                 
                 // Validasi kategori: hanya "Barang Jadi" yang diperbolehkan
                 $kategori = strtolower(trim($barang->deskripsi ?? ''));
@@ -177,12 +179,7 @@ class OutputBarangController extends Controller
                     throw new \Exception("Stok {$barang->nama_barang} tidak boleh negatif");
                 }
 
-                // Update harga jual jika berbeda
-                if ($barang->harga_jual != $hargaJual) {
-                    $barang->update([
-                        'harga_jual' => $hargaJual,
-                    ]);
-                }
+                // JANGAN update harga_jual di master (Input Saldo Awal is the only place)
 
                 $totalHarga += $jumlah;
             }
@@ -202,12 +199,14 @@ class OutputBarangController extends Controller
                 $namaBarang = $validated['barang_nama'][$index] ?? '';
                 $quantity = (float) ($validated['barang_qty'][$index] ?? 0);
                 $satuan = $validated['barang_satuan'][$index] ?? '';
-                $hargaJual = (float) ($validated['barang_harga'][$index] ?? 0);
-                $jumlah = (float) ($validated['barang_jumlah'][$index] ?? 0);
 
-                // Ambil barang dari master
+                // Ambil barang dari master (untuk konsistensi harga)
                 $barang = Barang::where('kode_barang', $barangKode)->first();
                 if ($barang) {
+                    // Re-calculate based on master price
+                    $hargaJual = $barang->harga_jual;
+                    $jumlah = $quantity * $hargaJual;
+
                     PenjualanBarangJadiDetail::create([
                         'penjualan_barang_jadi_id' => $penjualan->id,
                         'barang_id' => $barang->id,
