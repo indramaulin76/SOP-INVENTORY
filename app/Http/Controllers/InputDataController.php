@@ -9,6 +9,7 @@ use App\Http\Requests\SaldoAwalRequest;
 use App\Http\Requests\CustomerRequest;
 use App\Http\Requests\SupplierRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class InputDataController extends Controller
 {
@@ -94,35 +95,14 @@ class InputDataController extends Controller
      */
     public function storeBarang(Request $request)
     {
-        // AUTO GENERATE KODE BARANG
-        $last = Barang::orderBy('id', 'DESC')->first();
-        if (!$last) {
-            $newCode = 'KODE-001';
-        } else {
-            // Extract number from last kode_barang
-            $lastCode = $last->kode_barang;
-            if (preg_match('/KODE-(\d+)/', $lastCode, $matches)) {
-                $num = (int) $matches[1];
-                $num++;
-                $newCode = 'KODE-' . str_pad($num, 3, '0', STR_PAD_LEFT);
-            } else {
-                // If format doesn't match, start from 001
-                $newCode = 'KODE-001';
-            }
-        }
-
-        $request->merge([
-            'kode_barang' => $newCode,
-        ]);
-
+        // Validation outside transaction to allow normal redirects
         $validated = $request->validate([
-            'kode_barang' => 'required|string|unique:barangs,kode_barang',
+            'kode_barang' => 'nullable|string|unique:barangs,kode_barang',
             'nama_barang' => 'required|string',
             'kategori' => 'required|string',
             'limit_stock' => 'required|integer|min:0',
             'satuan' => 'required|string',
         ], [
-            'kode_barang.required' => 'Kode barang wajib diisi.',
             'kode_barang.unique' => 'Kode barang sudah digunakan. Silakan gunakan kode yang berbeda.',
             'nama_barang.required' => 'Nama barang wajib diisi.',
             'kategori.required' => 'Kategori barang wajib dipilih.',
@@ -132,17 +112,47 @@ class InputDataController extends Controller
             'satuan.required' => 'Jenis satuan wajib dipilih.',
         ]);
 
-        Barang::create([
-            'kode_barang' => $validated['kode_barang'],
-            'nama_barang' => $validated['nama_barang'],
-            'deskripsi' => $validated['kategori'], // Simpan kategori di field deskripsi untuk sekarang
-            'satuan' => $validated['satuan'],
-            'stok' => (int) $validated['limit_stock'], // Pastikan integer
-            'harga_beli' => 0,
-            'harga_jual' => 0,
-        ]);
+        try {
+            DB::beginTransaction();
 
-        return redirect()->route('input-data.barang')->with('success', 'Data barang berhasil disimpan! Kode barang: ' . $validated['kode_barang']);
+            // AUTO GENERATE KODE BARANG
+            // Lock the table to prevent race conditions during code generation
+            // Note: pessimistic locking on the last record is a simple way to serialize access
+            $last = Barang::lockForUpdate()->orderBy('id', 'DESC')->first();
+
+            if (!$last) {
+                $newCode = 'KODE-001';
+            } else {
+                // Extract number from last kode_barang
+                $lastCode = $last->kode_barang;
+                if (preg_match('/KODE-(\d+)/', $lastCode, $matches)) {
+                    $num = (int) $matches[1];
+                    $num++;
+                    $newCode = 'KODE-' . str_pad($num, 3, '0', STR_PAD_LEFT);
+                } else {
+                    // If format doesn't match, start from 001
+                    $newCode = 'KODE-001';
+                }
+            }
+
+            // Use validated data or generated code
+            Barang::create([
+                'kode_barang' => $newCode,
+                'nama_barang' => $validated['nama_barang'],
+                'deskripsi' => $validated['kategori'], // Simpan kategori di field deskripsi untuk sekarang
+                'satuan' => $validated['satuan'],
+                'stok' => (int) $validated['limit_stock'], // Pastikan integer
+                'harga_beli' => 0,
+                'harga_jual' => 0,
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('input-data.barang')->with('success', 'Data barang berhasil disimpan! Kode barang: ' . $validated['kode_barang']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())->withInput();
+        }
     }
 
     /**
@@ -150,37 +160,46 @@ class InputDataController extends Controller
      */
     public function storeSupplier(SupplierRequest $request)
     {
-        // Generate kode supplier otomatis
-        $last = Supplier::orderBy('id', 'DESC')->first();
-        if (!$last) {
-            $newCode = 'SUP001';
-        } else {
-            // Extract number from last kode_supplier
-            $lastCode = $last->kode_supplier;
-            if (preg_match('/SUP(\d+)/', $lastCode, $matches)) {
-                $num = (int) $matches[1];
-                $num++;
-                $newCode = 'SUP' . str_pad($num, 3, '0', STR_PAD_LEFT);
-            } else {
-                // If format doesn't match, start from 001
-                $newCode = 'SUP001';
-            }
-        }
-
         // Semua request sudah tervalidasi otomatis oleh SupplierRequest
         $validated = $request->validated();
-        
-        Supplier::create([
-            'kode_supplier' => $newCode,
-            'nama_supplier' => $validated['nama_supplier'],
-            'alamat' => $validated['alamat'],
-            'telepon' => $validated['telepon'],
-            'email' => $validated['email'] ?? null,
-            'nama_pemilik' => $validated['nama_pemilik'] ?? null,
-            'keterangan' => $validated['keterangan'] ?? null,
-        ]);
 
-        return redirect()->route('input-data.supplier')->with('success', 'Data supplier berhasil disimpan! Kode supplier: ' . $newCode);
+        try {
+            DB::beginTransaction();
+
+            // Generate kode supplier otomatis
+            $last = Supplier::lockForUpdate()->orderBy('id', 'DESC')->first();
+            if (!$last) {
+                $newCode = 'SUP001';
+            } else {
+                // Extract number from last kode_supplier
+                $lastCode = $last->kode_supplier;
+                if (preg_match('/SUP(\d+)/', $lastCode, $matches)) {
+                    $num = (int) $matches[1];
+                    $num++;
+                    $newCode = 'SUP' . str_pad($num, 3, '0', STR_PAD_LEFT);
+                } else {
+                    // If format doesn't match, start from 001
+                    $newCode = 'SUP001';
+                }
+            }
+
+            Supplier::create([
+                'kode_supplier' => $newCode,
+                'nama_supplier' => $validated['nama_supplier'],
+                'alamat' => $validated['alamat'],
+                'telepon' => $validated['telepon'],
+                'email' => $validated['email'] ?? null,
+                'nama_pemilik' => $validated['nama_pemilik'] ?? null,
+                'keterangan' => $validated['keterangan'] ?? null,
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('input-data.supplier')->with('success', 'Data supplier berhasil disimpan! Kode supplier: ' . $newCode);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())->withInput();
+        }
     }
 
     /**
@@ -188,37 +207,46 @@ class InputDataController extends Controller
      */
     public function storeCustomer(CustomerRequest $request)
     {
-        // Generate kode customer otomatis
-        $last = Customer::orderBy('id', 'DESC')->first();
-        if (!$last) {
-            $newCode = 'CUS001';
-        } else {
-            // Extract number from last kode_customer
-            $lastCode = $last->kode_customer;
-            if (preg_match('/CUS(\d+)/', $lastCode, $matches)) {
-                $num = (int) $matches[1];
-                $num++;
-                $newCode = 'CUS' . str_pad($num, 3, '0', STR_PAD_LEFT);
-            } else {
-                // If format doesn't match, start from 001
-                $newCode = 'CUS001';
-            }
-        }
-
         // Semua request sudah tervalidasi otomatis oleh CustomerRequest
         $validated = $request->validated();
-        
-        Customer::create([
-            'kode_customer' => $newCode,
-            'nama_customer' => $validated['nama_customer'],
-            'alamat' => $validated['alamat'],
-            'telepon' => $validated['telepon'],
-            'email' => $validated['email'] ?? null,
-            'tipe_customer' => $validated['tipe_customer'] ?? null,
-            'keterangan' => $validated['keterangan'] ?? null,
-        ]);
 
-        return redirect()->route('input-data.customer')->with('success', 'Data customer berhasil disimpan! Kode customer: ' . $newCode);
+        try {
+            DB::beginTransaction();
+
+            // Generate kode customer otomatis
+            $last = Customer::lockForUpdate()->orderBy('id', 'DESC')->first();
+            if (!$last) {
+                $newCode = 'CUS001';
+            } else {
+                // Extract number from last kode_customer
+                $lastCode = $last->kode_customer;
+                if (preg_match('/CUS(\d+)/', $lastCode, $matches)) {
+                    $num = (int) $matches[1];
+                    $num++;
+                    $newCode = 'CUS' . str_pad($num, 3, '0', STR_PAD_LEFT);
+                } else {
+                    // If format doesn't match, start from 001
+                    $newCode = 'CUS001';
+                }
+            }
+
+            Customer::create([
+                'kode_customer' => $newCode,
+                'nama_customer' => $validated['nama_customer'],
+                'alamat' => $validated['alamat'],
+                'telepon' => $validated['telepon'],
+                'email' => $validated['email'] ?? null,
+                'tipe_customer' => $validated['tipe_customer'] ?? null,
+                'keterangan' => $validated['keterangan'] ?? null,
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('input-data.customer')->with('success', 'Data customer berhasil disimpan! Kode customer: ' . $newCode);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())->withInput();
+        }
     }
 
     /**

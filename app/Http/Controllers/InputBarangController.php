@@ -189,7 +189,13 @@ class InputBarangController extends Controller
                     $kategori = strtolower(trim($barang->deskripsi ?? ''));
                     $allowedKategori = ['bahan baku', 'bahan_baku', 'bahanbaku', 'bahan roti', 'bahan kopi'];
                     
-                    if (!in_array($kategori, $allowedKategori)) {
+                    // Normalize check by replacing underscores with spaces and trimming
+                    $normalizedKategori = str_replace('_', ' ', $kategori);
+                    $normalizedAllowed = array_map(function($k) {
+                        return str_replace('_', ' ', strtolower($k));
+                    }, $allowedKategori);
+
+                    if (!in_array($normalizedKategori, $normalizedAllowed) && !in_array($kategori, $allowedKategori)) {
                         throw new \Exception("Barang '{$barang->nama_barang}' bukan kategori Bahan Baku. Hanya barang dengan kategori 'Bahan Baku' yang dapat digunakan untuk pembelian bahan baku.");
                     }
 
@@ -203,8 +209,8 @@ class InputBarangController extends Controller
                         'jumlah' => $jumlah,
                     ]);
 
-                    // Update stock: stok_akhir = stok_awal + masuk (bulatkan ke integer)
-                    $barang->addStock((int) round($quantity));
+                    // Update stock: stok_akhir = stok_awal + masuk
+                    $barang->addStock($quantity);
                     
                     // Update nama dan satuan jika berubah (JANGAN update harga_beli)
                     $barang->update([
@@ -309,7 +315,13 @@ class InputBarangController extends Controller
                     $kategori = strtolower(trim($barang->deskripsi ?? ''));
                     $allowedKategori = ['barang dalam proses', 'barang_dalam_proses', 'barangdalamproses', 'barang_proses', 'barangproses'];
                     
-                    if (!in_array($kategori, $allowedKategori)) {
+                    // Normalize check
+                    $normalizedKategori = str_replace('_', ' ', $kategori);
+                    $normalizedAllowed = array_map(function($k) {
+                        return str_replace('_', ' ', strtolower($k));
+                    }, $allowedKategori);
+
+                    if (!in_array($normalizedKategori, $normalizedAllowed) && !in_array($kategori, $allowedKategori)) {
                         throw new \Exception("Barang '{$barang->nama_barang}' bukan kategori Barang Dalam Proses. Hanya barang dengan kategori 'Barang Dalam Proses' yang dapat digunakan untuk input barang dalam proses.");
                     }
 
@@ -324,8 +336,8 @@ class InputBarangController extends Controller
                         'barang_jumlah' => $jumlah,
                     ]);
 
-                    // Update stock: stok_akhir = stok_awal + masuk (bulatkan ke integer)
-                    $barang->addStock((int) round($quantity));
+                    // Update stock: stok_akhir = stok_awal + masuk
+                    $barang->addStock($quantity);
                     
                     // Update nama dan satuan jika berubah (JANGAN update harga_beli)
                     $barang->update([
@@ -430,7 +442,13 @@ class InputBarangController extends Controller
                     $kategori = strtolower(trim($barang->deskripsi ?? ''));
                     $allowedKategori = ['barang jadi', 'barang_jadi', 'barangjadi'];
                     
-                    if (!in_array($kategori, $allowedKategori)) {
+                    // Normalize check
+                    $normalizedKategori = str_replace('_', ' ', $kategori);
+                    $normalizedAllowed = array_map(function($k) {
+                        return str_replace('_', ' ', strtolower($k));
+                    }, $allowedKategori);
+
+                    if (!in_array($normalizedKategori, $normalizedAllowed) && !in_array($kategori, $allowedKategori)) {
                         throw new \Exception("Barang '{$barang->nama_barang}' bukan kategori Barang Jadi. Hanya barang dengan kategori 'Barang Jadi' yang dapat digunakan untuk input barang jadi.");
                     }
 
@@ -445,8 +463,8 @@ class InputBarangController extends Controller
                         'barang_jumlah' => $jumlah,
                     ]);
 
-                    // Update stock: stok_akhir = stok_awal + masuk (bulatkan ke integer)
-                    $barang->addStock((int) round($quantity));
+                    // Update stock: stok_akhir = stok_awal + masuk
+                    $barang->addStock($quantity);
                     
                     // Update nama dan satuan jika berubah (JANGAN update harga_beli)
                     $barang->update([

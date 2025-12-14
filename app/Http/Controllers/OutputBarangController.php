@@ -115,7 +115,13 @@ class OutputBarangController extends Controller
                 $kategori = strtolower(trim($barang->deskripsi ?? ''));
                 $allowedKategori = ['barang jadi', 'barang_jadi', 'barangjadi'];
                 
-                if (!in_array($kategori, $allowedKategori)) {
+                // Normalize check
+                $normalizedKategori = str_replace('_', ' ', $kategori);
+                $normalizedAllowed = array_map(function($k) {
+                    return str_replace('_', ' ', strtolower($k));
+                }, $allowedKategori);
+
+                if (!in_array($normalizedKategori, $normalizedAllowed) && !in_array($kategori, $allowedKategori)) {
                     $stockErrors[] = "Barang '{$barang->nama_barang}' bukan kategori Barang Jadi. Hanya barang dengan kategori 'Barang Jadi' yang dapat digunakan untuk penjualan barang jadi.";
                     continue;
                 }
@@ -150,7 +156,13 @@ class OutputBarangController extends Controller
                 $kategori = strtolower(trim($barang->deskripsi ?? ''));
                 $allowedKategori = ['barang jadi', 'barang_jadi', 'barangjadi'];
                 
-                if (!in_array($kategori, $allowedKategori)) {
+                // Normalize check
+                $normalizedKategori = str_replace('_', ' ', $kategori);
+                $normalizedAllowed = array_map(function($k) {
+                    return str_replace('_', ' ', strtolower($k));
+                }, $allowedKategori);
+
+                if (!in_array($normalizedKategori, $normalizedAllowed) && !in_array($kategori, $allowedKategori)) {
                     throw new \Exception("Barang '{$barang->nama_barang}' bukan kategori Barang Jadi. Hanya barang dengan kategori 'Barang Jadi' yang dapat digunakan untuk penjualan barang jadi.");
                 }
 
@@ -169,13 +181,13 @@ class OutputBarangController extends Controller
                     throw new \Exception("Stok {$barang->nama_barang} tidak mencukupi");
                 }
 
-                // Reduce stock: stok_akhir = stok_awal - keluar (bulatkan ke integer)
-                $barang->reduceStock((int) round($quantity));
+                // Reduce stock: stok_akhir = stok_awal - keluar
+                $barang->reduceStock($quantity);
                 
                 // Ensure stock doesn't go negative
                 $barang->refresh();
                 if ($barang->stok < 0) {
-                    $barang->increment('stok', (int) round($quantity));
+                    $barang->increment('stok', $quantity);
                     throw new \Exception("Stok {$barang->nama_barang} tidak boleh negatif");
                 }
 
@@ -309,7 +321,13 @@ class OutputBarangController extends Controller
                 $kategori = strtolower(trim($barang->deskripsi ?? ''));
                 $allowedKategori = ['bahan baku', 'bahan_baku', 'bahanbaku', 'bahan roti', 'bahan kopi'];
                 
-                if (!in_array($kategori, $allowedKategori)) {
+                // Normalize check
+                $normalizedKategori = str_replace('_', ' ', $kategori);
+                $normalizedAllowed = array_map(function($k) {
+                    return str_replace('_', ' ', strtolower($k));
+                }, $allowedKategori);
+
+                if (!in_array($normalizedKategori, $normalizedAllowed) && !in_array($kategori, $allowedKategori)) {
                     throw new \Exception("Barang '{$barang->nama_barang}' bukan kategori Bahan Baku. Hanya barang dengan kategori 'Bahan Baku' yang dapat digunakan untuk pemakaian bahan baku.");
                 }
 
@@ -345,13 +363,13 @@ class OutputBarangController extends Controller
                     'jumlah' => $jumlah,
                 ]);
 
-                // Reduce stock: stok_akhir = stok_awal - keluar (bulatkan ke integer)
-                $barang->reduceStock((int) round($quantity));
+                // Reduce stock: stok_akhir = stok_awal - keluar
+                $barang->reduceStock($quantity);
                 
                 // Ensure stock doesn't go negative
                 $barang->refresh();
                 if ($barang->stok < 0) {
-                    $barang->increment('stok', (int) round($quantity));
+                    $barang->increment('stok', $quantity);
                     throw new \Exception("Stok {$barang->nama_barang} tidak boleh negatif");
                 }
 
@@ -410,7 +428,13 @@ class OutputBarangController extends Controller
                 $kategori = strtolower(trim($barang->deskripsi ?? ''));
                 $allowedKategori = ['barang dalam proses', 'barang_dalam_proses', 'barangdalamproses', 'barang_proses', 'barangproses'];
                 
-                if (!in_array($kategori, $allowedKategori)) {
+                // Normalize check
+                $normalizedKategori = str_replace('_', ' ', $kategori);
+                $normalizedAllowed = array_map(function($k) {
+                    return str_replace('_', ' ', strtolower($k));
+                }, $allowedKategori);
+
+                if (!in_array($normalizedKategori, $normalizedAllowed) && !in_array($kategori, $allowedKategori)) {
                     $stockErrors[] = "Barang '{$barang->nama_barang}' bukan kategori Barang Dalam Proses. Hanya barang dengan kategori 'Barang Dalam Proses' yang dapat digunakan untuk pemakaian barang dalam proses.";
                     continue;
                 }
@@ -495,13 +519,13 @@ class OutputBarangController extends Controller
                     'jumlah' => $jumlah,
                 ]);
 
-                // Reduce stock: stok_akhir = stok_awal - keluar (bulatkan ke integer)
-                $barang->reduceStock((int) round($quantity));
+                // Reduce stock: stok_akhir = stok_awal - keluar
+                $barang->reduceStock($quantity);
                 
                 // Ensure stock doesn't go negative
                 $barang->refresh();
                 if ($barang->stok < 0) {
-                    $barang->increment('stok', (int) round($quantity));
+                    $barang->increment('stok', $quantity);
                     throw new \Exception("Stok {$barang->nama_barang} tidak boleh negatif");
                 }
 
