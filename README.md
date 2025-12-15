@@ -102,7 +102,7 @@ Sistem manajemen inventory untuk bakery & coffee shop yang dibangun dengan Larav
 ### 5. Export Data
 - Export ke PDF (menggunakan DomPDF)
 - Export ke Excel (menggunakan PhpSpreadsheet)
-
+git 
 ### 6. User Management
 - Multi-user system dengan 3 level role:
   - **Pimpinan (Superadmin)** - Full access
