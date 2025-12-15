@@ -98,13 +98,11 @@ class InputDataController extends Controller
     {
         // Validation outside transaction to allow normal redirects
         $validated = $request->validate([
-            'kode_barang' => 'nullable|string|unique:barangs,kode_barang',
             'nama_barang' => 'required|string',
             'kategori' => 'required|string',
             'limit_stock' => 'required|integer|min:0',
             'satuan' => 'required|string',
         ], [
-            'kode_barang.unique' => 'Kode barang sudah digunakan. Silakan gunakan kode yang berbeda.',
             'nama_barang.required' => 'Nama barang wajib diisi.',
             'kategori.required' => 'Kategori barang wajib dipilih.',
             'limit_stock.required' => 'Limit stock wajib diisi.',
@@ -149,7 +147,7 @@ class InputDataController extends Controller
 
             DB::commit();
 
-            return redirect()->route('input-data.barang')->with('success', 'Data barang berhasil disimpan! Kode barang: ' . $validated['kode_barang']);
+            return redirect()->route('input-data.barang')->with('success', 'Data barang berhasil disimpan! Kode barang: ' . $newCode);
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())->withInput();
