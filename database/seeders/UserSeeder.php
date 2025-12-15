@@ -13,46 +13,49 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create 2 Karyawan (Employee) users
-        $karyawan1 = User::create([
-            'name' => 'Karyawan Satu',
-            'email' => 'karyawan1@sae-bakery.com',
-            'password' => Hash::make('Karyawan123!'),
-            'role' => 'employee',
+        // 1. Clean Users Table
+        User::truncate();
+
+        // 2. Create Superadmin (Pimpinan)
+        $superadmin = User::create([
+            'name' => 'Super Admin',
+            'email' => 'pimpinan@sea-bakery.com',
+            'password' => Hash::make('Pimpinana123!'),
+            'role' => 'superadmin',
         ]);
 
-        $karyawan2 = User::create([
-            'name' => 'Karyawan Dua',
-            'email' => 'karyawan2@sae-bakery.com',
-            'password' => Hash::make('Karyawan123!'),
-            'role' => 'employee',
-        ]);
-
-        // Create 1 Admin user
+        // 3. Create Admin
         $admin = User::create([
-            'name' => 'Admin Sae Bakery',
-            'email' => 'admin@sae-bakery.com',
+            'name' => 'Admin Staff',
+            'email' => 'admin@sea-bakery.com',
             'password' => Hash::make('Admin123!'),
             'role' => 'admin',
         ]);
 
-        echo "\n✅ User berhasil dibuat:\n";
+        // 4. Create Employee (Karyawan)
+        $karyawan = User::create([
+            'name' => 'Karyawan Staff',
+            'email' => 'karyawan@sea-bakery.com',
+            'password' => Hash::make('Karyawan123!'),
+            'role' => 'employee',
+        ]);
+
+        echo "\n✅ SYSTEM USERS GENERATED SUCCESSFULLY\n";
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-        echo "KARYAWAN 1:\n";
-        echo "  Email: {$karyawan1->email}\n";
-        echo "  Password: Karyawan123!\n";
-        echo "  Role: {$karyawan1->role}\n\n";
-        
-        echo "KARYAWAN 2:\n";
-        echo "  Email: {$karyawan2->email}\n";
-        echo "  Password: Karyawan123!\n";
-        echo "  Role: {$karyawan2->role}\n\n";
-        
+        echo "SUPERADMIN (Pimpinan):\n";
+        echo "  Email:    {$superadmin->email}\n";
+        echo "  Password: Pimpinana123!\n";
+        echo "  Role:     {$superadmin->role}\n";
+        echo "----------------------------------------------------\n";
         echo "ADMIN:\n";
-        echo "  Email: {$admin->email}\n";
+        echo "  Email:    {$admin->email}\n";
         echo "  Password: Admin123!\n";
-        echo "  Role: {$admin->role}\n";
+        echo "  Role:     {$admin->role}\n";
+        echo "----------------------------------------------------\n";
+        echo "KARYAWAN (Employee):\n";
+        echo "  Email:    {$karyawan->email}\n";
+        echo "  Password: Karyawan123!\n";
+        echo "  Role:     {$karyawan->role}\n";
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
     }
 }
-
