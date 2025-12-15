@@ -453,18 +453,19 @@ class InputDataController extends Controller
                 ], 400);
             }
             
-            $barang = Barang::where('nama_barang', $nama)->first();
+            // Return list of matching barangs to handle duplicate names
+            $barangs = Barang::where('nama_barang', 'like', '%' . $nama . '%')->get();
             
-            if (!$barang) {
+            if ($barangs->isEmpty()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Barang tidak ditemukan'
                 ], 404);
             }
             
-            return response()->json([
-                'success' => true,
-                'barang' => [
+            // Transform collection to array
+            $result = $barangs->map(function ($barang) {
+                return [
                     'id' => $barang->id,
                     'kode_barang' => $barang->kode_barang,
                     'nama_barang' => $barang->nama_barang,
@@ -474,7 +475,12 @@ class InputDataController extends Controller
                     'harga_beli' => $barang->harga_beli,
                     'harga_jual' => $barang->harga_jual,
                     'stok' => $barang->stok,
-                ]
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'barang' => $result // Return list instead of single object
             ]);
         } catch (\Exception $e) {
             return response()->json([

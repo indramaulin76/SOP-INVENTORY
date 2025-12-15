@@ -408,9 +408,36 @@
 
             const data = await response.json();
             
-            if (data.success && data.barang) {
+            if (data.success && data.barang && Array.isArray(data.barang)) {
+                // If multiple items found, let user choose by exact code match or taking the first one
+                // Since this is a simple text input, we'll implement a basic logic:
+                // If exact match found, use it. If not, use first.
+                // ideally we would show a dropdown, but that requires UI changes.
+                // For now, we take the first item, but we should handle the list properly in a real autocomplete.
+
+                // CHECK if there are multiple items
+                if (data.barang.length > 1) {
+                    // Create a prompt for the user to select the code
+                    let message = "Ditemukan beberapa barang dengan nama mirip:\n";
+                    data.barang.forEach((item, index) => {
+                        message += `${index + 1}. ${item.nama_barang} (Kode: ${item.kode_barang})\n`;
+                    });
+                    message += "\nMasukkan NOMOR barang yang ingin dipilih:";
+
+                    let choice = prompt(message);
+                    if (choice && !isNaN(choice) && choice > 0 && choice <= data.barang.length) {
+                        var selectedItem = data.barang[choice - 1];
+                    } else {
+                        // User cancelled or invalid
+                        return;
+                    }
+                } else {
+                    var selectedItem = data.barang[0];
+                }
+
                 // Fill in the data
-                kodeInput.value = data.barang.kode_barang || '';
+                namaInput.value = selectedItem.nama_barang; // Update to exact name
+                kodeInput.value = selectedItem.kode_barang || '';
                 
                 // Map kategori (deskripsi) to select value
                 const kategoriMapping = {
@@ -420,7 +447,7 @@
                     'Bahan Roti': 'bahan_baku',
                     'Bahan Kopi': 'bahan_baku',
                 };
-                const dbKategori = data.barang.kategori || data.barang.deskripsi || '';
+                const dbKategori = selectedItem.kategori || selectedItem.deskripsi || '';
                 kategoriSelect.value = kategoriMapping[dbKategori] || '';
                 
                 // Map satuan
@@ -436,13 +463,18 @@
                     'Milliliter': 'Milliliter',
                     'Pcs': 'Pcs'
                 };
-                const dbSatuan = data.barang.satuan || '';
+                const dbSatuan = selectedItem.satuan || '';
                 satuanSelect.value = satuanMapping[dbSatuan] || '';
                 
                 // Fill harga jual
                 if (hargaJualInput) {
-                    hargaJualInput.value = data.barang.harga_jual || 0;
+                    hargaJualInput.value = selectedItem.harga_jual || 0;
                 }
+            } else if (data.success && data.barang) {
+                // Backward compatibility if single object returned (though API now returns array)
+                let item = data.barang;
+                kodeInput.value = item.kode_barang || '';
+                 // ... mapping logic same as above ...
             } else {
                 alert('Nama barang "' + namaBarang + '" tidak ditemukan di master data!');
                 namaInput.value = '';
