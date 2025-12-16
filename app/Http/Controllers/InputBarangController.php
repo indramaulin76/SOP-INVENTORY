@@ -57,16 +57,19 @@ class InputBarangController extends Controller
             return response()->json([]);
         }
         
+        // Return list of matching barangs to handle duplicate names
         $barangs = Barang::where('nama_barang', 'like', '%' . $term . '%')
             ->orWhere('kode_barang', 'like', '%' . $term . '%')
             ->select('id', 'nama_barang', 'kode_barang', 'satuan', 'harga_beli')
-            ->limit(10)
+            ->limit(20) // Increased limit to see variations
             ->get()
             ->map(function($barang) {
                 return [
                     'id' => $barang->id,
-                    'nama_barang' => $barang->nama_barang,
-                    'kode_barang' => $barang->kode_barang,
+                    'nama_barang' => $barang->nama_barang, // Display name
+                    'label' => $barang->nama_barang . ' (' . $barang->kode_barang . ')', // Autocomplete label with code
+                    'value' => $barang->nama_barang, // Autocomplete value
+                    'kode_barang' => $barang->kode_barang, // Unique ID
                     'satuan' => $barang->satuan,
                     'harga_beli_default' => $barang->harga_beli ?? 0,
                 ];
@@ -243,7 +246,7 @@ class InputBarangController extends Controller
 
                     // Update stock: stok_akhir = stok_awal + masuk
                     $barang->addStock($quantity);
-                    
+
                     // Update nama dan satuan jika berubah (JANGAN update harga_beli)
                     $barang->update([
                         'nama_barang' => $namaBarang,

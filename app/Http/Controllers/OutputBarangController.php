@@ -314,12 +314,12 @@ class OutputBarangController extends Controller
 
             // Create details and reduce stock
             $totalHarga = 0;
-            foreach ($validated['barang_nama'] as $index => $namaBarang) {
-                // Ambil barang dari master berdasarkan nama
-                $barang = Barang::where('nama_barang', $namaBarang)->first();
+            foreach ($validated['barang_kode'] as $index => $barangKode) {
+                // Ambil barang dari master berdasarkan kode
+                $barang = Barang::where('kode_barang', $barangKode)->first();
                 if (!$barang) {
                     return back()->withErrors([
-                        'barang_nama.' . $index => 'Barang "' . $namaBarang . '" tidak ditemukan di master.'
+                        'barang_kode.' . $index => 'Barang dengan kode "' . $barangKode . '" tidak ditemukan di master.'
                     ])->withInput();
                 }
                 
@@ -489,12 +489,12 @@ class OutputBarangController extends Controller
 
             // Create details and reduce stock
             $totalHarga = 0;
-            foreach ($validated['barang_nama'] as $index => $namaBarang) {
-                // Ambil barang dari master berdasarkan nama
-                $barang = Barang::where('nama_barang', $namaBarang)->first();
+            foreach ($validated['barang_kode'] as $index => $barangKode) {
+                // Ambil barang dari master berdasarkan kode
+                $barang = Barang::where('kode_barang', $barangKode)->first();
                 if (!$barang) {
                     return back()->withErrors([
-                        'barang_nama.' . $index => 'Barang "' . $namaBarang . '" tidak ditemukan di master.'
+                        'barang_kode.' . $index => 'Barang dengan kode "' . $barangKode . '" tidak ditemukan di master.'
                     ])->withInput();
                 }
                 

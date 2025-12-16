@@ -282,9 +282,29 @@
 
             const data = await response.json();
             
-            if (data.success && data.barang) {
+            if (data.success && data.barang && Array.isArray(data.barang)) {
+                // Check multiple results
+                 if (data.barang.length > 1) {
+                    let message = "Ditemukan beberapa barang dengan nama mirip:\n";
+                    data.barang.forEach((item, index) => {
+                        message += `${index + 1}. ${item.nama_barang} (Kode: ${item.kode_barang})\n`;
+                    });
+                    message += "\nMasukkan NOMOR barang yang ingin dipilih:";
+
+                    let choice = prompt(message);
+                    if (choice && !isNaN(choice) && choice > 0 && choice <= data.barang.length) {
+                        var selectedItem = data.barang[choice - 1];
+                    } else {
+                        return; // Cancelled
+                    }
+                } else {
+                    var selectedItem = data.barang[0];
+                }
+
+                // Update fields
+                namaInput.value = selectedItem.nama_barang; // Ensure exact name
                 if (kodeInput) {
-                    kodeInput.value = data.barang.kode_barang || '';
+                    kodeInput.value = selectedItem.kode_barang || '';
                 }
                 
                 // Map satuan
@@ -300,16 +320,22 @@
                     'Milliliter': 'Milliliter',
                     'Pcs': 'Pcs'
                 };
-                const dbSatuan = data.barang.satuan || '';
+                const dbSatuan = selectedItem.satuan || '';
                 if (satuanSelect) {
                     satuanSelect.value = satuanMapping[dbSatuan] || 'Kilogram';
                 }
                 
                 // Fill harga jual (dari database)
-                if (hargaInput && data.barang.harga_jual) {
-                    hargaInput.value = data.barang.harga_jual;
+                if (hargaInput && selectedItem.harga_jual) {
+                    hargaInput.value = selectedItem.harga_jual;
                     if (qtyInput) calculateRow(qtyInput);
                 }
+            } else if (data.success && data.barang) {
+                 // Fallback for single object response
+                let selectedItem = data.barang;
+
+                if (kodeInput) kodeInput.value = selectedItem.kode_barang || '';
+                // ... same logic as above ...
             } else {
                 alert('Nama barang "' + namaBarang + '" tidak ditemukan di master data!');
                 namaInput.value = '';

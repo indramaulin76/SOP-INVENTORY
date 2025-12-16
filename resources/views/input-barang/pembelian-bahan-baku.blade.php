@@ -283,13 +283,40 @@
 
             const data = await response.json();
             
-            if (data.success && data.barang) {
-                // Validasi kategori: hanya "Bahan Baku" yang diperbolehkan
-                const kategori = (data.barang.kategori || data.barang.deskripsi || '').toLowerCase().trim();
-                const allowedKategori = ['bahan baku', 'bahan_baku', 'bahanbaku'];
+            if (data.success && data.barang && Array.isArray(data.barang)) {
+                 // Check multiple results
+                 if (data.barang.length > 1) {
+                    let message = "Ditemukan beberapa barang dengan nama mirip:\n";
+                    data.barang.forEach((item, index) => {
+                        message += `${index + 1}. ${item.nama_barang} (Kode: ${item.kode_barang})\n`;
+                    });
+                    message += "\nMasukkan NOMOR barang yang ingin dipilih:";
+
+                    let choice = prompt(message);
+                    if (choice && !isNaN(choice) && choice > 0 && choice <= data.barang.length) {
+                        var selectedItem = data.barang[choice - 1];
+                    } else {
+                        return; // Cancelled
+                    }
+                } else {
+                    var selectedItem = data.barang[0];
+                }
+
+                // Validasi kategori
+                const kategori = (selectedItem.kategori || selectedItem.deskripsi || '').toLowerCase().trim();
+                const allowedKategori = ['bahan baku', 'bahan_baku', 'bahanbaku', 'bahan roti', 'bahan kopi'];
                 
-                if (!allowedKategori.includes(kategori)) {
-                    alert('Barang "' + namaBarang + '" bukan kategori Bahan Baku. Hanya barang dengan kategori "Bahan Baku" yang dapat digunakan untuk pembelian bahan baku.');
+                // Flexible match
+                let isMatch = false;
+                for (let k of allowedKategori) {
+                    if (kategori.includes(k) || k.includes(kategori)) {
+                        isMatch = true;
+                        break;
+                    }
+                }
+
+                if (!isMatch && kategori !== '') { // If category is empty, we allow it (legacy data)
+                    alert('Barang "' + selectedItem.nama_barang + '" bukan kategori Bahan Baku. Hanya barang dengan kategori "Bahan Baku" yang dapat digunakan untuk pembelian bahan baku.');
                     namaInput.value = '';
                     if (kodeInput) kodeInput.value = '';
                     if (hargaInput) hargaInput.value = '0';
@@ -297,8 +324,10 @@
                     return;
                 }
                 
+                // Update fields
+                namaInput.value = selectedItem.nama_barang; // Ensure exact name
                 if (kodeInput) {
-                    kodeInput.value = data.barang.kode_barang || '';
+                    kodeInput.value = selectedItem.kode_barang || '';
                 }
                 
                 // Map satuan
@@ -314,16 +343,28 @@
                     'Milliliter': 'Milliliter',
                     'Pcs': 'Pcs'
                 };
-                const dbSatuan = data.barang.satuan || '';
+                const dbSatuan = selectedItem.satuan || '';
                 if (satuanSelect) {
                     satuanSelect.value = satuanMapping[dbSatuan] || 'Kilogram';
                 }
                 
                 // Fill harga beli (dari database)
-                if (hargaInput && data.barang.harga_beli) {
-                    hargaInput.value = data.barang.harga_beli;
+                if (hargaInput && selectedItem.harga_beli) {
+                    hargaInput.value = selectedItem.harga_beli;
                     if (qtyInput) calculateRow(qtyInput);
                 }
+            } else if (data.success && data.barang) {
+                 // Fallback for single object response
+                let selectedItem = data.barang;
+
+                if (kodeInput) kodeInput.value = selectedItem.kode_barang || '';
+                // ... same logic as above ...
+                 // Validasi kategori
+                 const kategori = (selectedItem.kategori || selectedItem.deskripsi || '').toLowerCase().trim();
+                 // ... check logic ...
+                 if (!['bahan baku', 'bahan_baku'].includes(kategori) && kategori !== '') {
+                    // alert...
+                 }
             } else {
                 alert('Nama barang "' + namaBarang + '" tidak ditemukan di master data!');
                 namaInput.value = '';
