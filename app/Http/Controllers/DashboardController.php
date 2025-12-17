@@ -97,23 +97,46 @@ class DashboardController extends Controller
      */
     private function getTransactionChartData()
     {
+        $startDate = now()->subDays(29)->format('Y-m-d');
+        $endDate = now()->format('Y-m-d');
+
+        // Helper function to get daily counts
+        $getCounts = function ($model) use ($startDate, $endDate) {
+            return $model::whereBetween('tanggal', [$startDate, $endDate])
+                ->groupBy('tanggal')
+                ->selectRaw('tanggal, count(*) as count')
+                ->pluck('count', 'tanggal')
+                ->toArray();
+        };
+
+        // Fetch all data in bulk
+        $counts = [
+            $getCounts(PembelianBahanBaku::class),
+            $getCounts(BarangDalamProses::class),
+            $getCounts(BarangJadi::class),
+            $getCounts(PemakaianBahanBaku::class),
+            $getCounts(PemakaianBarangDalamProses::class),
+            $getCounts(PenjualanBarangJadi::class),
+        ];
+
         $data = [];
         $labels = [];
-        
+
         for ($i = 29; $i >= 0; $i--) {
             $date = now()->subDays($i)->format('Y-m-d');
             $labels[] = now()->subDays($i)->format('d M');
             
-            // Count transactions for this date
-            $masuk = PembelianBahanBaku::whereDate('tanggal', $date)->count() +
-                     BarangDalamProses::whereDate('tanggal', $date)->count() +
-                     BarangJadi::whereDate('tanggal', $date)->count();
+            $total = 0;
+            // Sum up counts for this specific date from all sources
+            foreach ($counts as $sourceCounts) {
+                // Determine if the key exists (handling string vs date object potentially, though format Y-m-d ensures string)
+                // pluck returns strings as keys usually.
+                if (isset($sourceCounts[$date])) {
+                    $total += $sourceCounts[$date];
+                }
+            }
             
-            $keluar = PemakaianBahanBaku::whereDate('tanggal', $date)->count() +
-                      PemakaianBarangDalamProses::whereDate('tanggal', $date)->count() +
-                      PenjualanBarangJadi::whereDate('tanggal', $date)->count();
-            
-            $data[] = $masuk + $keluar;
+            $data[] = $total;
         }
 
         return [
